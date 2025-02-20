@@ -39,48 +39,56 @@ export function BookingForm({ venue }: BookingFormProps) {
       email: "",
       phone: "",
       date: "",
-      guests: "",
+      guests: "1",
       notes: "",
     },
   });
 
   async function onSubmit(data: z.infer<typeof bookingSchema>) {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value.toString());
-    });
-
-    // Add venue details to the form
-    formData.append("_subject", `Booking Request for ${venue.name}`);
-    formData.append("venue_name", venue.name);
-    formData.append("venue_address", venue.address);
-    formData.append("venue_price", venue.price.toString());
-
-    // Set the recipient email
-    formData.append("_replyto", data.email);
-
-    try {
-      const response = await fetch("https://formsubmit.co/ajax/" + venue.email, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Booking Request Sent",
-          description: "We'll contact you shortly to confirm your booking.",
-        });
-        form.reset();
-      } else {
-        throw new Error("Failed to send booking request");
-      }
-    } catch (error) {
+    if (!venue.email) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to send booking request. Please try again.",
+        description: "This venue doesn't have an email address for booking.",
       });
+      return;
     }
+
+    const formElement = document.createElement('form');
+    formElement.method = 'POST';
+    formElement.action = `https://formsubmit.co/${venue.email}`;
+    formElement.target = '_blank';
+
+    // Add form data
+    const formFields = {
+      ...data,
+      _subject: `Booking Request for ${venue.name}`,
+      _captcha: 'false',
+      venue_name: venue.name,
+      venue_address: venue.address,
+      venue_price: venue.price.toString(),
+      _template: 'table'
+    };
+
+    // Create hidden inputs for all form fields
+    Object.entries(formFields).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value.toString();
+      formElement.appendChild(input);
+    });
+
+    // Append form to body, submit it, and remove it
+    document.body.appendChild(formElement);
+    formElement.submit();
+    document.body.removeChild(formElement);
+
+    toast({
+      title: "Booking Request Sent",
+      description: "We'll contact you shortly to confirm your booking.",
+    });
+    form.reset();
   }
 
   return (
@@ -149,7 +157,7 @@ export function BookingForm({ venue }: BookingFormProps) {
             <FormItem>
               <FormLabel>Number of Guests</FormLabel>
               <FormControl>
-                <Input type="number" {...field} />
+                <Input type="number" min="1" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
