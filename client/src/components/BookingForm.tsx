@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { type Venue } from "@shared/schema";
 
+const DEFAULT_EMAIL = "rehansaqib.getz@gmail.com";
+
 const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -45,18 +47,9 @@ export function BookingForm({ venue }: BookingFormProps) {
   });
 
   async function onSubmit(data: z.infer<typeof bookingSchema>) {
-    if (!venue.email) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "This venue doesn't have an email address for booking.",
-      });
-      return;
-    }
-
     const formElement = document.createElement('form');
     formElement.method = 'POST';
-    formElement.action = `https://formsubmit.co/${venue.email}`;
+    formElement.action = `https://formsubmit.co/${venue.email || DEFAULT_EMAIL}`;
     formElement.target = '_blank';
 
     // Add form data
