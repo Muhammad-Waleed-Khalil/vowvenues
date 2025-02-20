@@ -1,57 +1,75 @@
-import { venues, type Venue, type InsertVenue } from "@shared/schema";
+import { users, venues, type User, type InsertUser, type Venue, type InsertVenue } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getVenues(): Promise<Venue[]>;
   getVenueById(id: number): Promise<Venue | undefined>;
+  getVenuesByOwnerId(ownerId: number): Promise<Venue[]>;
+  createVenue(insertVenue: InsertVenue & { ownerId: number }): Promise<Venue>;
+  updateVenue(id: number, venue: Partial<InsertVenue>): Promise<Venue>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(insertUser: InsertUser): Promise<User>;
+  getUser(id: number): Promise<User | undefined>;
+  sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private venues: Map<number, Venue>;
-  currentId: number;
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
 
   constructor() {
-    this.venues = new Map();
-    this.currentId = 1;
-    this.initializeVenues();
-  }
-
-  private async initializeVenues() {
-    const fs = await import('fs');
-    const path = await import('path');
-    const filePath = path.resolve(process.cwd(), 'attached_assets/halls.txt');
-    
-    try {
-      const data = await fs.promises.readFile(filePath, 'utf8');
-      const lines = data.split('\n').filter(line => line.trim());
-      
-      lines.forEach(line => {
-        const [name, capacity, additionalMetric, phone, address, price, email] = line.split('\t');
-        if (name) {
-          const venue: Venue = {
-            id: this.currentId++,
-            name: name.trim(),
-            capacity: parseInt(capacity, 10),
-            additionalMetric: parseInt(additionalMetric, 10),
-            phone: phone.trim(),
-            address: address.trim(),
-            price: parseFloat(price.replace(/,/g, '')),
-            email: email?.trim() || null
-          };
-          this.venues.set(venue.id, venue);
-        }
-      });
-    } catch (error) {
-      console.error('Error loading venues:', error);
-    }
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
+    });
   }
 
   async getVenues(): Promise<Venue[]> {
-    return Array.from(this.venues.values());
+    return await db.select().from(venues);
   }
 
   async getVenueById(id: number): Promise<Venue | undefined> {
-    return this.venues.get(id);
+    const [venue] = await db.select().from(venues).where(eq(venues.id, id));
+    return venue;
+  }
+
+  async getVenuesByOwnerId(ownerId: number): Promise<Venue[]> {
+    return await db.select().from(venues).where(eq(venues.ownerId, ownerId));
+  }
+
+  async createVenue(insertVenue: InsertVenue & { ownerId: number }): Promise<Venue> {
+    const [venue] = await db.insert(venues).values(insertVenue).returning();
+    return venue;
+  }
+
+  async updateVenue(id: number, venue: Partial<InsertVenue>): Promise<Venue> {
+    const [updatedVenue] = await db
+      .update(venues)
+      .set(venue)
+      .where(eq(venues.id, id))
+      .returning();
+    return updatedVenue;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

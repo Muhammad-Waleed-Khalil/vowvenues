@@ -44,16 +44,23 @@ export function BookingForm({ venue }: BookingFormProps) {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof bookingSchema>) => {
+  async function onSubmit(data: z.infer<typeof bookingSchema>) {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       formData.append(key, value.toString());
     });
-    formData.append("venue", venue.name);
-    formData.append("_to", venue.email || "info@vowvenues.pk");
+
+    // Add venue details to the form
+    formData.append("_subject", `Booking Request for ${venue.name}`);
+    formData.append("venue_name", venue.name);
+    formData.append("venue_address", venue.address);
+    formData.append("venue_price", venue.price.toString());
+
+    // Set the recipient email
+    formData.append("_replyto", data.email);
 
     try {
-      const response = await fetch("https://formsubmit.co/ajax/your-form-hash", {
+      const response = await fetch("https://formsubmit.co/ajax/" + venue.email, {
         method: "POST",
         body: formData,
       });
@@ -74,7 +81,7 @@ export function BookingForm({ venue }: BookingFormProps) {
         description: "Failed to send booking request. Please try again.",
       });
     }
-  };
+  }
 
   return (
     <Form {...form}>
