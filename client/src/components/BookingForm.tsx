@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { type Venue } from "@shared/schema";
 
-const DEFAULT_EMAIL = "rehansaqib.getz@gmail.com";
+const DEFAULT_EMAIL = "mwaleedkhalil@gmail.com";
 
 const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
